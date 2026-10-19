@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AutoLoc | Fleet management</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18251f;
+      --muted: #718077;
+      --line: #e4eae5;
+      --paper: #ffffff;
+      --canvas: #f5f7f4;
+      --green: #c13f78;
+      --green-dark: #a82e63;
+      --green-pale: #fbeaf1;
+      --red: #b33d3d;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .layout { min-height: 100vh; display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+    .sidebar { background: #492536; color: #fff; padding: 26px 16px; }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 0 10px 30px; }
+    .brand-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; background: #a83e6d; font-size: 21px; }
+    .brand strong { display: block; font-size: 17px; letter-spacing: .2px; }
+    .brand span { display: block; margin-top: 3px; color: #e6c5d3; font-size: 12px; }
+    .nav-label { padding: 0 11px 10px; color: #c7a2b2; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
+    .nav { display: grid; gap: 4px; }
+    .nav button { width: 100%; display: flex; align-items: center; gap: 11px; border: 0; border-radius: 9px; padding: 10px 11px; background: transparent; color: #f0dfe6; text-align: left; font-size: 13px; }
+    .nav button:hover { background: #603448; color: white; }
+    .nav button.active { background: #86415f; color: white; font-weight: 650; }
+    .nav-icon { display: inline-grid; place-items: center; width: 19px; color: #e2bdcd; font-size: 15px; }
+    main { min-width: 0; padding: 34px clamp(18px, 4vw, 56px); }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+    .eyebrow { margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+    h1 { margin: 0; font-size: clamp(25px, 3vw, 32px); letter-spacing: -.7px; }
+    .actions { display: flex; gap: 9px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; border: 1px solid var(--line); border-radius: 9px; padding: 0 14px; background: var(--paper); color: var(--ink); font-size: 13px; font-weight: 650; }
+    .button:hover { border-color: #c7d4cb; background: #fbfcfb; }
+    .button.primary { border-color: var(--green); background: var(--green); color: white; }
+    .button.primary:hover { border-color: var(--green-dark); background: var(--green-dark); }
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .stat { border: 1px solid var(--line); border-radius: 12px; padding: 17px 18px; background: var(--paper); }
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { margin-top: 8px; font-size: 23px; font-weight: 720; letter-spacing: -.5px; }
+    .card { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+    .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 16px 18px; }
+    .card-head strong { font-size: 14px; }
+    .count { border-radius: 20px; padding: 4px 9px; background: var(--green-pale); color: var(--green); font-size: 11px; font-weight: 700; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { padding: 11px 16px; background: #fafbfa; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; white-space: nowrap; }
+    td { border-top: 1px solid #edf0ed; padding: 13px 16px; font-size: 12px; white-space: nowrap; }
+    tbody tr:hover { background: #fcfdfc; }
+    .id-cell { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .row-actions { display: flex; justify-content: flex-end; gap: 6px; }
+    .icon-button { display: inline-grid; place-items: center; width: 30px; height: 30px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #68776e; }
+    .icon-button:hover { border-color: var(--line); background: white; color: var(--green); }
+    .icon-button.delete:hover { color: var(--red); }
+    .empty, .loading { padding: 48px 18px; color: var(--muted); text-align: center; font-size: 13px; }
+    .error { margin-bottom: 16px; border: 1px solid #f1cccc; border-radius: 9px; padding: 11px 14px; background: #fff5f5; color: #9a3030; font-size: 13px; }
+    .hidden { display: none !important; }
+    .overlay { position: fixed; z-index: 4; inset: 0; display: grid; place-items: center; padding: 18px; background: rgb(16 32 23 / 42%); }
+    .dialog { width: min(560px, 100%); max-height: min(88vh, 780px); overflow-y: auto; border-radius: 14px; background: white; box-shadow: 0 24px 70px rgb(0 0 0 / 20%); }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 19px 22px; }
+    .dialog-head h2 { margin: 0; font-size: 18px; }
+    .dialog-body { padding: 20px 22px 8px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+    .field { min-width: 0; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { display: block; margin-bottom: 6px; color: #53635a; font-size: 11px; font-weight: 650; }
+    .field input, .field select { width: 100%; min-height: 39px; border: 1px solid #dce4de; border-radius: 8px; padding: 8px 10px; background: #fff; color: var(--ink); outline: none; font-size: 13px; }
+    .field input:focus, .field select:focus { border-color: #db78a2; box-shadow: 0 0 0 3px #fbeaf1; }
+    .dialog-foot { display: flex; justify-content: flex-end; gap: 9px; border-top: 1px solid var(--line); margin-top: 18px; padding: 15px 22px; }
+    .form-error { margin: 14px 22px 0; }
+    @media (max-width: 800px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { padding: 14px 15px; }
+      .brand { padding: 0 3px 14px; }
+      .nav-label { display: none; }
+      .nav { display: flex; overflow-x: auto; padding-bottom: 2px; }
+      .nav button { width: auto; flex: 0 0 auto; }
+      main { padding-top: 23px; }
+    }
+    @media (max-width: 520px) {
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .stats { gap: 8px; }
+      .stat { padding: 13px; }
+      .stat-value { font-size: 19px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">A</div>
+        <div><strong>AutoLoc</strong><span>Fleet management</span></div>
+      </div>
+      <div class="nav-label">Workspace</div>
+      <nav class="nav" id="navigation" aria-label="Data sections"></nav>
+    </aside>
+    <main>
+      <header class="topbar">
+        <div><div class="eyebrow">Workspace / <span id="breadcrumb">Agences</span></div><h1 id="page-title">Agences</h1></div>
+        <div class="actions">
+          <button class="button" id="refresh-button" type="button"><span aria-hidden="true">↻</span> Refresh</button>
+          <button class="button primary" id="create-button" type="button"><span aria-hidden="true">＋</span> Add record</button>
+        </div>
+      </header>
+      <div id="page-error" class="error hidden" role="alert"></div>
+      <section class="stats" aria-label="Overview">
+        <div class="stat"><div class="stat-label">Current section</div><div class="stat-value" id="stat-section">Agences</div></div>
+        <div class="stat"><div class="stat-label">Total records</div><div class="stat-value" id="stat-count">—</div></div>
+        <div class="stat"><div class="stat-label">API status</div><div class="stat-value" id="stat-status">Checking…</div></div>
+      </section>
+      <section class="card">
+        <div class="card-head"><strong id="table-title">Agence records</strong><span class="count" id="record-count">0 records</span></div>
+        <div class="table-wrap" id="table-container"></div>
+      </section>
+    </main>
+  </div>
+  <div class="overlay hidden" id="form-overlay" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+    <form class="dialog" id="record-form">
+      <div class="dialog-head"><h2 id="dialog-title">Add record</h2><button class="icon-button" type="button" id="close-dialog" aria-label="Close">✕</button></div>
+      <div id="form-error" class="error form-error hidden" role="alert"></div>
+      <div class="dialog-body"><div class="form-grid" id="form-fields"></div></div>
+      <div class="dialog-foot"><button class="button" type="button" id="cancel-button">Cancel</button><button class="button primary" id="save-button" type="submit">Save record</button></div>
+    </form>
+  </div>
+  <script>
+    const sections = [
+      { name: "Agences", singular: "Agence", path: "agences", id: "idAgence", icon: "⌂", fields: [
+        { key: "nom", label: "Name", required: true }, { key: "ville", label: "City" },
+        { key: "adresse", label: "Address", full: true }, { key: "telephone", label: "Phone" }
+      ] },
+      { name: "Employés", singular: "Employé", path: "employes", id: "idEmploye", icon: "♙", fields: [
+        { key: "nom", label: "Last name", required: true }, { key: "prenom", label: "First name", required: true },
+        { key: "role", label: "Role", type: "select", options: ["AGENT", "MANAGER"] },
+        { key: "agence", label: "Agence", type: "relation", endpoint: "agences", id: "idAgence", display: "nom" }
+      ] },
+      { name: "Véhicules", singular: "Véhicule", path: "vehicules", id: "idVehicule", icon: "▰", fields: [
+        { key: "immatriculation", label: "Registration", required: true }, { key: "marque", label: "Make" },
+        { key: "modele", label: "Model" }, { key: "categorie", label: "Category", type: "select", options: ["CITADINE", "BERLINE", "SUV", "UTILITAIRE"] },
+        { key: "tarifJournalier", label: "Daily rate", type: "number", step: "0.01", min: "0" },
+        { key: "statut", label: "Status", type: "select", options: ["DISPONIBLE", "LOUE", "MAINTENANCE"] },
+        { key: "agence", label: "Agence", type: "relation", endpoint: "agences", id: "idAgence", display: "nom" },
+        { key: "equipements", label: "Equipment", type: "relation", endpoint: "equipements", id: "idEquipement", display: "libelle", multiple: true, full: true }
+      ] },
+      { name: "Clients", singular: "Client", path: "clients", id: "idClient", icon: "♧", fields: [
+        { key: "nom", label: "Last name", required: true }, { key: "prenom", label: "First name", required: true },
+        { key: "email", label: "Email", type: "email" }, { key: "telephone", label: "Phone" },
+        { key: "numPermis", label: "Driver licence" }, { key: "dateInscription", label: "Registration date", type: "date" }
+      ] },
+      { name: "Réservations", singular: "Réservation", path: "reservations", id: "idReservation", icon: "▤", fields: [
+        { key: "dateDebut", label: "Start date", type: "date", required: true }, { key: "dateFin", label: "End date", type: "date", required: true },
+        { key: "statut", label: "Status", type: "select", options: ["EN_ATTENTE", "CONFIRMEE", "ANNULEE", "TERMINEE"] },
+        { key: "client", label: "Client", type: "relation", endpoint: "clients", id: "idClient", display: "nom" },
+        { key: "vehicule", label: "Véhicule", type: "relation", endpoint: "vehicules", id: "idVehicule", display: "immatriculation" }
+      ] },
+      { name: "Contrats", singular: "Contrat", path: "contrats", id: "idContrat", icon: "▧", fields: [
+        { key: "dateSignature", label: "Signature date", type: "date" },
+        { key: "montantTotal", label: "Total amount", type: "number", step: "0.01", min: "0" },
+        { key: "valide", label: "Valid", type: "checkbox" },
+        { key: "reservation", label: "Réservation", type: "relation", endpoint: "reservations", id: "idReservation", display: "idReservation" }
+      ] },
+      { name: "Paiements", singular: "Paiement", path: "paiements", id: "idPaiement", icon: "◈", fields: [
+        { key: "montant", label: "Amount", type: "number", step: "0.01", min: "0" },
+        { key: "datePaiement", label: "Payment date", type: "date" },
+        { key: "modePaiement", label: "Payment method", type: "select", options: ["CARTE", "ESPECES", "VIREMENT"] },
+        { key: "contrat", label: "Contrat", type: "relation", endpoint: "contrats", id: "idContrat", display: "idContrat" }
+      ] },
+      { name: "Maintenances", singular: "Maintenance", path: "maintenances", id: "idMaintenance", icon: "⚙", fields: [
+        { key: "dateDebut", label: "Start date", type: "date" }, { key: "dateFin", label: "End date", type: "date" },
+        { key: "description", label: "Description", full: true },
+        { key: "vehicule", label: "Véhicule", type: "relation", endpoint: "vehicules", id: "idVehicule", display: "immatriculation" }
+      ] },
+      { name: "Équipements", singular: "Équipement", path: "equipements", id: "idEquipement", icon: "◇", fields: [
+        { key: "libelle", label: "Label", required: true }
+      ] }
+    ];
+
+    let activeSection = sections[0];
+    let records = [];
+    let editingId = null;
+
+    const navigation = document.getElementById("navigation");
+    const tableContainer = document.getElementById("table-container");
+    const pageError = document.getElementById("page-error");
+    const overlay = document.getElementById("form-overlay");
+    const form = document.getElementById("record-form");
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[character]);
+    }
+
+    function displayValue(value, field) {
+      if (value === null || value === undefined || value === "") return "—";
+      if (Array.isArray(value)) return value.map(item => escapeHtml(item?.[field.display] ?? item?.idEquipement ?? "")).join(", ") || "—";
+      if (typeof value === "object") return escapeHtml(value[field.display] ?? value[field.id] ?? "—");
+      if (typeof value === "boolean") return value ? "Yes" : "No";
+      return escapeHtml(value);
+    }
+
+    function renderNavigation() {
+      navigation.innerHTML = sections.map(section => `
+        <button type="button" class="${section === activeSection ? "active" : ""}" data-path="${section.path}">
+          <span class="nav-icon" aria-hidden="true">${section.icon}</span>${section.name}
+        </button>`).join("");
+      navigation.querySelectorAll("button").forEach(button => {
+        button.addEventListener("click", () => {
+          activeSection = sections.find(section => section.path === button.dataset.path);
+          renderNavigation();
+          loadRecords();
+        });
+      });
+    }
+
+    function renderTable() {
+      document.getElementById("record-count").textContent = `${records.length} record${records.length === 1 ? "" : "s"}`;
+      document.getElementById("stat-count").textContent = records.length;
+      document.getElementById("table-title").textContent = `${activeSection.singular} records`;
+      if (records.length === 0) {
+        tableContainer.innerHTML = `<div class="empty">No ${activeSection.name.toLowerCase()} yet. Add a record to get started.</div>`;
+        return;
+      }
+      const fields = activeSection.fields;
+      tableContainer.innerHTML = `
+        <table>
+          <thead><tr><th>ID</th>${fields.map(field => `<th>${escapeHtml(field.label)}</th>`).join("")}<th style="text-align:right">Actions</th></tr></thead>
+          <tbody>${records.map(record => `
+            <tr>
+              <td class="id-cell">#${escapeHtml(record[activeSection.id])}</td>
+              ${fields.map(field => `<td>${displayValue(record[field.key], field)}</td>`).join("")}
+              <td><div class="row-actions">
+                <button class="icon-button edit-button" type="button" data-id="${escapeHtml(record[activeSection.id])}" aria-label="Edit record">✎</button>
+                <button class="icon-button delete delete-button" type="button" data-id="${escapeHtml(record[activeSection.id])}" aria-label="Delete record">⌫</button>
+              </div></td>
+            </tr>`).join("")}</tbody>
+        </table>`;
+      tableContainer.querySelectorAll(".edit-button").forEach(button => button.addEventListener("click", () => {
+        const record = records.find(item => String(item[activeSection.id]) === button.dataset.id);
+        openForm(record);
+      }));
+      tableContainer.querySelectorAll(".delete-button").forEach(button => button.addEventListener("click", () => deleteRecord(button.dataset.id)));
+    }
+
+    async function loadRecords() {
+      pageError.classList.add("hidden");
+      tableContainer.innerHTML = '<div class="loading">Loading records…</div>';
+      document.getElementById("page-title").textContent = activeSection.name;
+      document.getElementById("breadcrumb").textContent = activeSection.name;
+      document.getElementById("stat-section").textContent = activeSection.name;
+      try {
+        const response = await fetch(`/api/${activeSection.path}`);
+        if (!response.ok) throw new Error(`Request failed (${response.status})`);
+        records = await response.json();
+        document.getElementById("stat-status").textContent = "Connected";
+        document.getElementById("stat-status").style.color = "var(--green)";
+        renderTable();
+      } catch (error) {
+        records = [];
+        document.getElementById("stat-count").textContent = "—";
+        document.getElementById("stat-status").textContent = "Offline";
+        document.getElementById("stat-status").style.color = "var(--red)";
+        tableContainer.innerHTML = '<div class="empty">Could not load records. Check that the AutoLoc server is running and try again.</div>';
+        showPageError(error.message);
+      }
+    }
+
+    function showPageError(message) {
+      pageError.textContent = message;
+      pageError.classList.remove("hidden");
+    }
+
+    function makeInput(field, value) {
+      const id = `field-${field.key}`;
+      const required = field.required ? "required" : "";
+      if (field.type === "select" || field.type === "relation") {
+        const multiple = field.multiple ? "multiple" : "";
+        let options;
+        if (field.type === "select") {
+          options = `<option value="">Select ${escapeHtml(field.label.toLowerCase())}</option>${field.options.map(option => `<option value="${escapeHtml(option)}" ${option === value ? "selected" : ""}>${escapeHtml(option.replaceAll("_", " "))}</option>`).join("")}`;
+        } else {
+          const currentIds = field.multiple
+            ? (Array.isArray(value) ? value.map(item => item?.[field.id]) : [])
+            : (value?.[field.id] ? [value[field.id]] : []);
+          options = `<option value="">No ${escapeHtml(field.label.toLowerCase())}</option>${(field.optionsData || []).map(item => {
+            const idValue = item[field.id];
+            const label = item[field.display] ?? `#${idValue}`;
+            return `<option value="${escapeHtml(idValue)}" ${currentIds.some(currentId => String(currentId) === String(idValue)) ? "selected" : ""}>${escapeHtml(label)}</option>`;
+          }).join("")}`;
+        }
+        return `<select id="${id}" name="${field.key}" ${multiple} ${required}>${options}</select>`;
+      }
+      if (field.type === "checkbox") return `<input id="${id}" name="${field.key}" type="checkbox" ${value ? "checked" : ""} style="width:18px;min-height:18px">`;
+      const type = field.type || "text";
+      const attributes = [
+        `type="${type}"`, `id="${id}"`, `name="${field.key}"`,
+        `value="${escapeHtml(value ?? "")}"`, required,
+        field.step ? `step="${field.step}"` : "",
+        field.min ? `min="${field.min}"` : ""
+      ].filter(Boolean).join(" ");
+      return `<input ${attributes}>`;
+    }
+
+    async function openForm(record = null) {
+      editingId = record ? record[activeSection.id] : null;
+      document.getElementById("dialog-title").textContent = `${record ? "Edit" : "Add"} ${activeSection.singular}`;
+      document.getElementById("form-error").classList.add("hidden");
+      try {
+        await Promise.all(activeSection.fields.filter(field => field.type === "relation").map(async field => {
+          const response = await fetch(`/api/${field.endpoint}`);
+          if (!response.ok) throw new Error(`Could not load ${field.label} options (${response.status})`);
+          field.optionsData = await response.json();
+        }));
+        document.getElementById("form-fields").innerHTML = activeSection.fields.map(field => `
+          <div class="field ${field.full ? "full" : ""}">
+            <label for="field-${field.key}">${escapeHtml(field.label)}${field.required ? " *" : ""}</label>
+            ${makeInput(field, record?.[field.key])}
+          </div>`).join("");
+        overlay.classList.remove("hidden");
+      } catch (error) {
+        showPageError(error.message);
+      }
+    }
+
+    function closeForm() {
+      overlay.classList.add("hidden");
+      form.reset();
+      editingId = null;
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const formError = document.getElementById("form-error");
+      formError.classList.add("hidden");
+      const payload = {};
+      for (const field of activeSection.fields) {
+        const input = form.elements.namedItem(field.key);
+        if (field.type === "relation") {
+          if (field.multiple) {
+            payload[field.key] = [...input.selectedOptions].filter(option => option.value).map(option => ({ [field.id]: Number(option.value) }));
+          } else if (input.value) {
+            payload[field.key] = { [field.id]: Number(input.value) };
+          }
+        } else if (field.type === "checkbox") {
+          payload[field.key] = input.checked;
+        } else if (input.value !== "") {
+          payload[field.key] = field.type === "number" ? Number(input.value) : input.value;
+        }
+      }
+
+      const isEditing = editingId !== null;
+      const endpoint = `/api/${activeSection.path}${isEditing ? `/${editingId}` : ""}`;
+      const saveButton = document.getElementById("save-button");
+      saveButton.disabled = true;
+      saveButton.textContent = "Saving…";
+      try {
+        const response = await fetch(endpoint, {
+          method: isEditing ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          const detail = await response.text();
+          throw new Error(detail || `Save failed (${response.status})`);
+        }
+        closeForm();
+        await loadRecords();
+      } catch (error) {
+        formError.textContent = error.message;
+        formError.classList.remove("hidden");
+      } finally {
+        saveButton.disabled = false;
+        saveButton.textContent = "Save record";
+      }
+    });
+
+    async function deleteRecord(id) {
+      if (!window.confirm(`Delete ${activeSection.singular.toLowerCase()} #${id}? This action cannot be undone.`)) return;
+      try {
+        const response = await fetch(`/api/${activeSection.path}/${id}`, { method: "DELETE" });
+        if (!response.ok) throw new Error(`Delete failed (${response.status})`);
+        await loadRecords();
+      } catch (error) {
+        showPageError(error.message);
+      }
+    }
+
+    document.getElementById("create-button").addEventListener("click", () => openForm());
+    document.getElementById("refresh-button").addEventListener("click", loadRecords);
+    document.getElementById("close-dialog").addEventListener("click", closeForm);
+    document.getElementById("cancel-button").addEventListener("click", closeForm);
+    overlay.addEventListener("click", event => {
+      if (event.target === overlay) closeForm();
+    });
+
+    renderNavigation();
+    loadRecords();
+  </script>
+</body>
+</html>
